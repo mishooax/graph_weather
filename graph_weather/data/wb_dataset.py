@@ -40,9 +40,12 @@ class WeatherBenchDataset(IterableDataset):
             lead_time: lead time
             batch_chunk_size: batch chunk size
         """
+        super(WeatherBenchDataset).__init__()
         self.fnames = fnames
         self.ds: Optional[xr.Dataset] = None
         self.lead_time = lead_time
+        assert self.lead_time % 6 == 0, "Lead time must be multiple of 6 hours"
+        self.lead_step = lead_time // 6 
         self.vars = var_names
         self.nvar = len(self.vars)
         self.bs = batch_chunk_size
@@ -55,14 +58,17 @@ class WeatherBenchDataset(IterableDataset):
         self.effective_ds_len = 0
         self.rng = None
 
+
     def per_worker_init(self, n_workers: int = 1) -> None:
         """Called by worker_init_func on each copy of WeatherBenchDataset after the worker process has been spawned."""
         self.ds: xr.Dataset = self.read_wb_data(self.fnames)
         self.ds = self.ds[self.vars]
 
         assert self.nlev == len(self.ds.level), "Incorrect number of pressure levels!"
-        self.effective_ds_len = int(np.ceil((len(self.ds.time) - self.lead_time) / self.bs))
-        self.n_samples_per_epoch_per_worker = self.effective_ds_len // n_workers
+        self.ds_len = len(self.ds.time) - self.lead_step
+        self.effective_ds_len = int(np.ceil(self.ds_len / self.bs)) 
+        self.n_samples_per_epoch_per_worker = self.ds_len // n_workers
+        self.n_batches_per_epoch_per_worker = self.effective_ds_len // n_workers
 
         # each worker must have a different seed for its random number generator,
         # otherwise all the workers will output exactly the same data
@@ -73,14 +79,21 @@ class WeatherBenchDataset(IterableDataset):
 
     def __iter__(self):
         LOGGER.debug(f"n_samples_per_epoch_per_worker: {self.n_samples_per_epoch_per_worker}")
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:
+            low = 0
+            high = self.ds_len
+        else:
+            worker_id = worker_info.id
+            low = worker_id * self.n_samples_per_epoch_per_worker
+            high = min( (worker_id + 1) * self.n_samples_per_epoch_per_worker, self.ds_len)
+            
         for _ in range(self.n_samples_per_epoch_per_worker):
-            i = self.rng.integers(low=0, high=self.effective_ds_len, dtype=np.uint32)
+            i = self.rng.integers(low=low, high=high, size = self.bs, dtype=np.uint32)
 
-            start, end = i * self.bs, (i + 1) * self.bs
-            Xv_ = self._transform(self.ds.isel(time=slice(start, end)))
+            Xv_ = self._transform(self.ds.isel(time=i))
 
-            start, end = i * self.bs + self.lead_time, (i + 1) * self.bs + self.lead_time
-            Yv_ = self._transform(self.ds.isel(time=slice(start, end)))
+            Yv_ = self._transform(self.ds.isel(time=i + self.lead_step))
 
             # shape: (bs, nvar, nlev, lat, lon)
             X = da.stack([Xv_[var] for var in self.vars], axis=1)
