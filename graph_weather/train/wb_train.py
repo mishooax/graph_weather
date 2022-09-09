@@ -46,11 +46,13 @@ def train(config: YAMLConfig) -> None:
         # use weights-and-biases
         logger = WandbLogger(
             project="GNN-WB",
-            save_dir=config["output:logging:log-dir"],
+            save_dir=os.path.join(config["output:basedir"],
+                                  config["output:logging:log-dir"]),
         )
     elif config["model:tensorboard:enabled"]:
         # use tensorboard
-        logger = TensorBoardLogger(config["output:logging:log-dir"])
+        logger = TensorBoardLogger(os.path.join(config["output:basedir"],
+                                  config["output:logging:log-dir"]))
     else:
         logger = False
 
@@ -58,7 +60,7 @@ def train(config: YAMLConfig) -> None:
     trainer = pl.Trainer(
         accelerator="gpu",
         callbacks=[
-            EarlyStopping(monitor="val_wmse", min_delta=1.0e-2, patience=3, verbose=False, mode="min"),
+            EarlyStopping(monitor="val_wmse", min_delta=0.0, patience=6, verbose=False, mode="min"),
             ModelCheckpoint(
                 dirpath=os.path.join(
                     config["output:basedir"],
@@ -69,7 +71,7 @@ def train(config: YAMLConfig) -> None:
                 monitor="val_wmse",
                 verbose=False,
                 save_top_k=config["output:model:save-top-k"],
-                save_weights_only=True,
+                save_weights_only=False,
                 mode="min",
                 auto_insert_metric_name=True,
                 save_on_train_epoch_end=True,

@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 import xarray as xr
 
-from graph_weather.utils.dask_utils import init_dask_cluster
+# from graph_weather.utils.dask_utils import init_dask_cluster
 from graph_weather.utils.config import YAMLConfig
 from graph_weather.data.wb_datamodule import WeatherBenchTestDataModule
 from graph_weather.utils.logger import get_logger
@@ -92,7 +92,7 @@ def store_predictions(
 
     comp = dict(zlib=True, complevel=_NC_COMPRESS_LEVEL)
     encoding = {var: comp for var in ds_pred_gnn.data_vars}
-    ds_pred_gnn.to_netcdf("ds_pred_gnn.nc", encoding=encoding)
+    ds_pred_gnn.to_zarr(config["input:variables:prediction:outname"])# , encoding=encoding)
 
 
 def backtransform_predictions(predictions: torch.Tensor, means: xr.Dataset, sds: xr.Dataset, config: YAMLConfig) -> torch.Tensor:

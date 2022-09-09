@@ -2,24 +2,21 @@ input:
   format: zarr  # or "netcdf4"
   variables:
     training:
-      # basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/training
-      # filename-template: "pl_*.nc"
-      basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/training
+      basedir: /ec/res4/hpcperm/pamc/WeatherBench/zarr/training/
       filename-template: "pl_*.zarr"
       summary-stats:
         precomputed: True
         means: /ec/res4/hpcperm/syma/WeatherBench/netcdf/means-1979-2015.nc
         std-devs: /ec/res4/hpcperm/syma/WeatherBench/netcdf/sds-1979-2015.nc
     validation:
-      # basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/validation
-      # filename-template: "pl_*.nc"
-      basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/validation
+      basedir: /ec/res4/hpcperm/pamc/WeatherBench/zarr/validation/
       filename-template: "pl_*.zarr"
     test:
-      basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/test
-      filename-template: "pl_*.nc"
+      basedir: /ec/res4/hpcperm/pamc/WeatherBench/zarr/test/
+      filename-template: "pl_*.zarr"
     prediction:
-      filename: /ec/res4/hpcperm/syma/WeatherBench/netcdf/test/pl_2020.nc
+      filename: /ec/res4/hpcperm/pamc/WeatherBench/zarr/test/pl_2020.zarr
+      outname: /ec/res4/hpcperm/pamc/WeatherBench/zarr/test/pl_2020_pred1.zarr
     names:
       - z
       - t
@@ -38,14 +35,14 @@ input:
 #  OUTPUT BLOCK
 ###################
 output:
-  basedir: /ec/res4/scratch/syma/GNN/WeatherBench
+  basedir: /ec/res4/scratch/pamc/GNN/WeatherBench
   logging:
-    log-dir: /ec/res4/scratch/syma/GNN/WeatherBench/logs
+    log-dir: /ec/res4/scratch/pamc/GNN/WeatherBench/logs
     log-interval: 25
   checkpoints:
     ckpt-dir: checkpoints
   model:
-    save-top-k: 1
+    save-top-k: 50
     checkpoint-filename: "gnn-wb-weights-{epoch:02d}-{val_wmse:.3f}"
 
 ###################
@@ -56,13 +53,13 @@ model:
     # this will detect and trace back NaNs / Infs etc. but will slow down training
     anomaly-detection: False
   wandb:
-    enabled: False
+    enabled: True
   tensorboard:
     enabled: False
   dask:
     enabled: True
-    temp-dir: /ec/res4/scratch/syma/GNN/WeatherBench/dask-temp-dir
-    log-dir: /ec/res4/scratch/syma/GNN/WeatherBench/dask-log-dir
+    temp-dir: /ec/res4/scratch/pamc/GNN/WeatherBench/dask-temp-dir
+    log-dir: /ec/res4/scratch/pamc/GNN/WeatherBench/dask-log-dir
     trim-worker-memory: True
     num-workers: 8
     num-threads-per-worker: 1
@@ -74,11 +71,11 @@ model:
       validation: 2
       inference: 4
     batch-size:
-      training: 1
+      training: 2
       inference: 2
     batch-chunk-size:
       training: 1
-      inference: 4
+      inference: 1
 
   # miscellaneous
   precision: 16
@@ -86,15 +83,15 @@ model:
   # runs only N training batches [N = integer | null]
   # if null then we run through all the batches
   limit-batches:
-    training: 200
-    validation: 50
+    training: 5000
+    validation: 500
     test: 50
-    predict: 50
+    predict: 500
 
   # specific GNN model settings
   lead-time: 6
-  max-epochs: 2
-  learn-rate: 1.e-3
+  max-epochs: 50
+  learn-rate: 1.e-4
   hidden-dim: 64
   num-blocks: 3
   # length of the "rollout" window (see Keisler's paper)
