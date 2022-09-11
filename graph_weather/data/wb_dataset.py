@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import IterableDataset
 
 from graph_weather.utils.logger import get_logger
-from graph_weather.utils.dask_utils import init_dask_config
+from graph_weather.utils.dask_utils import init_dask_config, trim_dask_worker_memory
 import graph_weather.utils.constants as constants
 
 LOGGER = get_logger(__name__)
@@ -32,6 +32,8 @@ class WeatherBenchDataset(IterableDataset):
         lead_time: int = 6,
         rollout: int = 1,
         batch_chunk_size: int = 4,
+        rank: int = 0,
+        world_size: int = 1,
     ) -> None:
         """
         Initialize (part of) the dataset state.
@@ -42,7 +44,10 @@ class WeatherBenchDataset(IterableDataset):
             var_mean, var_std: precomputed means and standard deviations for all data vars; used to normalize data
             plevs: pressure levels (if None then we take all plevs present in the input dataset)
             lead_time: lead time (multiple of 6 hours!)
+            rollout: length of rollout window (Keisler, 2021)
             batch_chunk_size: batch chunk size
+            rank: process rank in the torch.distributed context (important when running on multiple GPUs)
+            world_size: total number of processes (nodes * GPUs_per_node) in the torch.distributed context
         """
         self.fnames = fnames
         self.ds: Optional[xr.Dataset] = None
@@ -70,6 +75,10 @@ class WeatherBenchDataset(IterableDataset):
         self.effective_ds_len = 0
         self.rng = None
 
+        # DDP-relevant info
+        self.rank = rank
+        self.world_size = world_size
+
         # dask
         self.cluster: Optional[LocalCluster] = None
         self.client: Optional[Client] = None
@@ -93,7 +102,14 @@ class WeatherBenchDataset(IterableDataset):
                 processes=False,
             )
             self.client = Client(self.cluster)
+            self.client.run(trim_dask_worker_memory)
             self.ds = self.read_wb_data(self.fnames, self.vars, self.plevs, self.client)
+
+        if self.world_size > 1:
+            # each rank will get one shard (an equal fraction of the total dataset)
+            shard_size = int(np.floor(len(self.ds.time) / self.world_size))
+            shard_start, shard_end = self.rank * shard_size, (self.rank + 1) * shard_size
+            self.ds = self.ds.isel(time=slice(shard_start, shard_end))
 
         self.ds_len = len(self.ds.time) - self.lead_step * self.rollout
         self.effective_ds_len = int(np.floor(self.ds_len / self.bcs))
