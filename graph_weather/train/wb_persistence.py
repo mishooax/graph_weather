@@ -101,6 +101,8 @@ def persistence(config: YAMLConfig) -> None:
         limit_val_batches=config["model:limit-batches:validation"],
     )
 
+    # Don't call train() - it won't work (there is nothing to train here).
+    # Instead, use validate() or test() to get the baseline WMSEs.
     trainer.validate(model, datamodule=dmod)
 
     LOGGER.debug("---- DONE. ----")

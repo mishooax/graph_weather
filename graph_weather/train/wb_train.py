@@ -16,7 +16,7 @@ from graph_weather.train.utils import build_pl_logger, get_args
 LOGGER = get_logger(__name__)
 
 
-def train(config: YAMLConfig, persistence: bool = False) -> None:
+def train(config: YAMLConfig) -> None:
     """
     Train entry point.
     Args:
@@ -31,22 +31,15 @@ def train(config: YAMLConfig, persistence: bool = False) -> None:
     LOGGER.debug("Number of variables: %d", num_features)
     LOGGER.debug("Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst)
 
-    if not persistence:
-        model = LitGraphForecaster(
-            lat_lons=dmod.const_data.latlons,
-            feature_dim=num_features,
-            aux_dim=dmod.const_data.nconst,
-            hidden_dim=config["model:hidden-dim"],
-            num_blocks=config["model:num-blocks"],
-            lr=config["model:learn-rate"],
-            rollout=config["model:rollout"],
-        )
-    else:
-        model = LitPersistenceForecaster(
-            lat_lons=dmod.const_data.latlons,
-            feature_dim=num_features,
-            rollout=config["model:rollout"],
-        )
+    model = LitGraphForecaster(
+        lat_lons=dmod.const_data.latlons,
+        feature_dim=num_features,
+        aux_dim=dmod.const_data.nconst,
+        hidden_dim=config["model:hidden-dim"],
+        num_blocks=config["model:num-blocks"],
+        lr=config["model:learn-rate"],
+        rollout=config["model:rollout"],
+    )
 
     trainer = pl.Trainer(
         accelerator="gpu",
@@ -77,7 +70,7 @@ def train(config: YAMLConfig, persistence: bool = False) -> None:
         max_epochs=config["model:max-epochs"],
         logger=build_pl_logger(config),
         log_every_n_steps=config["output:logging:log-interval"],
-        # run fewer batches per epoch (helpful when debugging)
+        # run a fixed no of batches per epoch (helpful when debugging)
         limit_train_batches=config["model:limit-batches:training"],
         limit_val_batches=config["model:limit-batches:validation"],
         # https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#fast-dev-run

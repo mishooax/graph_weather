@@ -87,7 +87,7 @@ model:
   # runs only N training batches [N = integer | null]
   # if null then we run through all the batches
   limit-batches:
-    training: 50
+    training: null
     validation: null
     test: 50
     predict: 50
@@ -95,7 +95,7 @@ model:
   # parallel strategy [set to null if you're running on a single node, single device]
   # see here for the various options:
   # https://pytorch-lightning.readthedocs.io/en/stable/extensions/strategy.html
-  strategy: null  # ddp_find_unused_parameters_false
+  strategy: ddp_find_unused_parameters_false  # null
 
   # number of GPUs per node and number of nodes (for DDP)
   num-gpus: 1

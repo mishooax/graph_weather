@@ -175,6 +175,7 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
 
     def _load_summary_statistics(self) -> Tuple[xr.Dataset, xr.Dataset]:
         # load pre-computed means and standard deviations
+        var_names = self.config["input:variables:names"]
         var_means = xr.load_dataset(
             os.path.join(
                 self.config["input:variables:training:basedir"], self.config["input:variables:training:summary-stats:means"]
@@ -185,7 +186,7 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
                 self.config["input:variables:training:basedir"], self.config["input:variables:training:summary-stats:std-devs"]
             )
         )
-        return var_means, var_sds
+        return var_means[var_names], var_sds[var_names]
 
     def _get_dataloader(self, data: xr.Dataset, num_workers: int, batch_size: int, batch_chunk_size: int) -> DataLoader:
         return DataLoader(
