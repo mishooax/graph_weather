@@ -1,20 +1,20 @@
 input:
-  format: zarr  # or "netcdf4"
+  format: netcdf4  # "zarr" or "netcdf4"
   variables:
     training:
-      # basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/training
-      # filename-template: "pl_*.nc"
-      basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/training
-      filename-template: "pl_*.zarr"
+      basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/training
+      filename-template: "pl_*.nc"
+      # basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/training
+      # filename-template: "pl_*.zarr"
       summary-stats:
         precomputed: True
         means: /ec/res4/hpcperm/syma/WeatherBench/netcdf/means-1979-2015.nc
         std-devs: /ec/res4/hpcperm/syma/WeatherBench/netcdf/sds-1979-2015.nc
     validation:
-      # basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/validation
-      # filename-template: "pl_*.nc"
-      basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/validation
-      filename-template: "pl_*.zarr"
+      basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/validation
+      filename-template: "pl_*.nc"
+      # basedir: /ec/res4/scratch/syma/data/WeatherBench/zarr/validation
+      # filename-template: "pl_*.zarr"
     test:
       basedir: /ec/res4/hpcperm/syma/WeatherBench/netcdf/test
       filename-template: "pl_*.nc"
@@ -40,7 +40,7 @@ input:
 output:
   basedir: /ec/res4/scratch/syma/GNN/WeatherBench
   logging:
-    log-dir: /ec/res4/scratch/syma/GNN/WeatherBench/logs
+    log-dir: logs
     log-interval: 25
   checkpoints:
     ckpt-dir: checkpoints
@@ -56,13 +56,12 @@ model:
     # this will detect and trace back NaNs / Infs etc. but will slow down training
     anomaly-detection: False
   wandb:
-    enabled: False
+    enabled: True
   tensorboard:
     enabled: False
   dask:
     enabled: True
-    temp-dir: /ec/res4/scratch/syma/GNN/WeatherBench/dask-temp-dir
-    log-dir: /ec/res4/scratch/syma/GNN/WeatherBench/dask-log-dir
+    temp-dir: dask-temp-dir
     trim-worker-memory: True
     num-workers: 8
     num-threads-per-worker: 1
@@ -70,15 +69,17 @@ model:
     scheduler-port: 8786
   dataloader:
     num-workers:
-      training: 4
-      validation: 2
+      training: 6
+      validation: 8
       inference: 4
     batch-size:
       training: 1
-      inference: 2
+      validation: 1
+      inference: 1
     batch-chunk-size:
-      training: 1
-      inference: 4
+      training: 2
+      validation: 16
+      inference: 8
 
   # miscellaneous
   precision: 16
@@ -86,10 +87,19 @@ model:
   # runs only N training batches [N = integer | null]
   # if null then we run through all the batches
   limit-batches:
-    training: 200
-    validation: 50
+    training: null
+    validation: null
     test: 50
     predict: 50
+
+  # parallel strategy [set to null if you're running on a single node, single device]
+  # see here for the various options:
+  # https://pytorch-lightning.readthedocs.io/en/stable/extensions/strategy.html
+  strategy: ddp_find_unused_parameters_false  # null
+
+  # number of GPUs per node and number of nodes (for DDP)
+  num-gpus: 1
+  num-nodes: 1
 
   # specific GNN model settings
   lead-time: 6
@@ -98,7 +108,7 @@ model:
   hidden-dim: 64
   num-blocks: 3
   # length of the "rollout" window (see Keisler's paper)
-  rollout: 4
+  rollout: 12
   # Keisler's three training rounds were:
   # Round 1. ~960,000 batches @ ~0.3 seconds per batch (4-step rollout)
   # Round 2. ~90,000 batches @ ~1.0 seconds per batch (8-step rollout)

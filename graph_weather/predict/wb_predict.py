@@ -11,7 +11,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 import xarray as xr
 
-from graph_weather.utils.dask_utils import init_dask_cluster
 from graph_weather.utils.config import YAMLConfig
 from graph_weather.data.wb_datamodule import WeatherBenchTestDataModule
 from graph_weather.utils.logger import get_logger
@@ -129,32 +128,24 @@ def predict(config: YAMLConfig, checkpoint_relpath: str) -> None:
     LOGGER.debug("Number of variables: %d", num_features)
     LOGGER.debug("Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst)
 
+    # learning rate multiplier when running single-node, multi-GPU and/or multi-node
+    total_gpu_count = config["model:num-nodes"] * config["model:num-gpus"]
+    LOGGER.debug("Total GPU count: %d - NB: the learning rate will be scaled by this factor!")
+    LOGGER.debug("Effective learning rate: %.3e", total_gpu_count * config["model:learn-rate"])
+
     model = LitGraphForecaster(
         lat_lons=dmod.const_data.latlons,
         feature_dim=num_features,
         aux_dim=dmod.const_data.nconst,
         hidden_dim=config["model:hidden-dim"],
         num_blocks=config["model:num-blocks"],
-        lr=config["model:learn-rate"],
+        lr=total_gpu_count * config["model:learn-rate"],
         rollout=config["model:rollout"],
     )
 
     # TODO: restore model from checkpoint
     checkpoint_filepath = os.path.join(config["output:basedir"], config["output:checkpoints:ckpt-dir"], checkpoint_relpath)
     model = LitGraphForecaster.load_from_checkpoint(checkpoint_filepath)
-
-    # init logger
-    if config["model:wandb:enabled"]:
-        # use weights-and-biases
-        logger = WandbLogger(
-            project="GNN-WB",
-            save_dir=config["output:logging:log-dir"],
-        )
-    elif config["model:tensorboard:enabled"]:
-        # use tensorboard
-        logger = TensorBoardLogger(config["output:logging:log-dir"])
-    else:
-        logger = False
 
     # fast_dev_run -> runs a single batch
     trainer = pl.Trainer(

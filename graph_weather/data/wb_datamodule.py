@@ -95,10 +95,18 @@ def get_weatherbench_dataset(
 class WeatherBenchTrainingDataModule(pl.LightningDataModule):
     def __init__(self, config: YAMLConfig) -> None:
         super().__init__()
-        self.batch_size = config["model:dataloader:batch-size:training"]
+        self.bs_train = config["model:dataloader:batch-size:training"]
+        self.bs_val = config["model:dataloader:batch-size:validation"]
+
+        self.bcs_train = config["model:dataloader:batch-chunk-size:training"]
+        self.bcs_val = config["model:dataloader:batch-chunk-size:validation"]
+
         self.num_workers_train = config["model:dataloader:num-workers:training"]
         self.num_workers_val = config["model:dataloader:num-workers:validation"]
         self.config = config
+        # TODO: is this the right variable to query here?
+        self.local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+        LOGGER.debug("Our WeatherBenchTrainingDataModule object with id = %s has LOCAL_RANK = %d", id(self), self.local_rank)
 
         if config["input:variables:training:summary-stats:precomputed"]:
             var_means, var_sds = self._load_summary_statistics()
@@ -118,6 +126,9 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
             lead_time=config["model:lead-time"],
             batch_chunk_size=config["model:dataloader:batch-chunk-size:training"],
             rollout=config["model:rollout"],
+            rank=self.local_rank,
+            # TODO: what if we want to scale to more than one node? the world_size can be larger, right?
+            world_size=config["model:num-gpus"] * config["model:num-nodes"],
         )
 
         self.ds_valid = WeatherBenchDataset(
@@ -130,14 +141,15 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
             var_sd=var_sds,
             plevs=config["input:variables:levels"],
             lead_time=config["model:lead-time"],
-            batch_chunk_size=config["model:dataloader:batch-chunk-size:training"],
+            batch_chunk_size=config["model:dataloader:batch-chunk-size:validation"],
             rollout=config["model:rollout"],
+            rank=self.local_rank,
+            world_size=config["model:num-gpus"],
         )
 
         self.const_data = WeatherBenchConstantFields(
             const_fname=config["input:constants:filename"],
             const_names=config["input:constants:names"],
-            batch_chunk_size=config["model:dataloader:batch-chunk-size:training"],
         )
 
     def _calculate_summary_statistics(self) -> Tuple[xr.Dataset, xr.Dataset]:
@@ -163,6 +175,7 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
 
     def _load_summary_statistics(self) -> Tuple[xr.Dataset, xr.Dataset]:
         # load pre-computed means and standard deviations
+        var_names = self.config["input:variables:names"]
         var_means = xr.load_dataset(
             os.path.join(
                 self.config["input:variables:training:basedir"], self.config["input:variables:training:summary-stats:means"]
@@ -173,25 +186,25 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
                 self.config["input:variables:training:basedir"], self.config["input:variables:training:summary-stats:std-devs"]
             )
         )
-        return var_means, var_sds
+        return var_means[var_names], var_sds[var_names]
 
-    def _get_dataloader(self, data: xr.Dataset, num_workers: int) -> DataLoader:
+    def _get_dataloader(self, data: xr.Dataset, num_workers: int, batch_size: int, batch_chunk_size: int) -> DataLoader:
         return DataLoader(
             data,
             # we're putting together one full batch from this many batch-chunks
             # this means the "real" batch size == config["model:dataloader:batch-size"] * config["model:dataloader:batch-chunk-size"]
-            batch_size=self.batch_size,
+            batch_size=batch_size,
             # number of worker processes
             num_workers=num_workers,
             # use of pinned memory can speed up CPU-to-GPU data transfers
             # see https://pytorch.org/docs/stable/notes/cuda.html#cuda-memory-pinning
             pin_memory=True,
             # custom collator (see above)
-            collate_fn=_custom_collator_wrapper(self.const_data.constants),
+            collate_fn=_custom_collator_wrapper(self.const_data.get_constants(batch_chunk_size)),
             # worker initializer
             worker_init_fn=partial(
                 worker_init_func,
-                dask_temp_dir=self.config["model:dask:temp-dir"],
+                dask_temp_dir=os.path.join(self.config["output:basedir"], self.config["model:dask:temp-dir"]),
                 num_dask_workers=self.config["model:dask:num-workers"],
                 num_dask_threads_per_worker=self.config["model:dask:num-threads-per-worker"],
             ),
@@ -201,10 +214,10 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
         )
 
     def train_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.ds_train, self.num_workers_train)
+        return self._get_dataloader(self.ds_train, self.num_workers_train, self.bs_train, self.bcs_train)
 
     def val_dataloader(self) -> DataLoader:
-        return self._get_dataloader(self.ds_valid, self.num_workers_val)
+        return self._get_dataloader(self.ds_valid, self.num_workers_val, self.bs_val, self.bcs_val)
 
     def transfer_batch_to_device(self, batch: WeatherBenchDataBatch, device: torch.device, dataloader_idx: int = 0) -> None:
         del dataloader_idx  # not used
@@ -216,7 +229,8 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
 class WeatherBenchTestDataModule(pl.LightningDataModule):
     def __init__(self, config: YAMLConfig) -> None:
         super().__init__()
-        self.batch_size = config["model:dataloader:batch-size:inference"]
+        self.bs = config["model:dataloader:batch-size:inference"]
+        self.bcs = config["model:dataloader:batch-chunk-size:inference"]
         self.num_workers = config["model:dataloader:num-workers:inference"]
         self.config = config
 
@@ -278,13 +292,13 @@ class WeatherBenchTestDataModule(pl.LightningDataModule):
     def _get_dataloader(self, data: xr.Dataset) -> DataLoader:
         return DataLoader(
             data,
-            batch_size=self.batch_size,
+            batch_size=self.bs,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=_custom_collator_wrapper(self.const_data.constants),
+            collate_fn=_custom_collator_wrapper(self.const_data.get_constants(self.bcs)),
             worker_init_fn=partial(
                 worker_init_func,
-                dask_temp_dir=self.config["model:dask:temp-dir"],
+                dask_temp_dir=os.path.join(self.config["output:basedir"], self.config["model:dask:temp-dir"]),
                 num_dask_workers=self.config["model:dask:num-workers"],
                 num_dask_threads_per_worker=self.config["model:dask:num-threads-per-worker"],
             ),

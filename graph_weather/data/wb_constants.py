@@ -9,7 +9,6 @@ class WeatherBenchConstantFields:
         self,
         const_fname: str,
         const_names: Optional[List[str]] = None,
-        batch_chunk_size: int = 4,
     ) -> None:
         """
         Args:
@@ -45,7 +44,6 @@ class WeatherBenchConstantFields:
         )
 
         self._constants = np.concatenate([self._constants, self.X_latlon], axis=-1)
-        self._constants = np.stack([self._constants for _ in range(batch_chunk_size)], axis=0)  # batch axis
 
         # reshape the latlon info into what the GNN expects
         self._latlons = np.array([lats, lons]).T.reshape((-1, 2))
@@ -53,12 +51,11 @@ class WeatherBenchConstantFields:
         # number of constant arrays
         self._nconst = self._constants.shape[-1]
 
-    @property
-    def constants(self):
+    def get_constants(self, batch_chunk_size: int) -> np.ndarray:
         """
         Returns the constant data as a numpy array of shape (batch_chunk_size, lat, lon, nvar)
         """
-        return self._constants
+        return np.stack([self._constants for _ in range(batch_chunk_size)], axis=0)  # batch axis
 
     @property
     def latlons(self):
