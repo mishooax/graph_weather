@@ -51,11 +51,11 @@ class WeatherBenchConstantFields:
         # number of constant arrays
         self._nconst = self._constants.shape[-1]
 
-    def get_constants(self, batch_chunk_size: int) -> np.ndarray:
+    def get_constants(self, bs: int) -> np.ndarray:
         """
-        Returns the constant data as a numpy array of shape (batch_chunk_size, lat, lon, nvar)
+        Returns the constant data as a numpy array of shape (bs, lat, lon, nvar)
         """
-        return np.stack([self._constants for _ in range(batch_chunk_size)], axis=0)  # batch axis
+        return np.stack([self._constants for _ in range(bs)], axis=0)  # batch axis
 
     @property
     def latlons(self):

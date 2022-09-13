@@ -7,7 +7,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from graph_weather.utils.config import YAMLConfig
-from graph_weather.data.wb_datamodule import WeatherBenchTrainingDataModule
+from graph_weather.data.grib.wb_datamodule import WeatherBenchGRIBDataModule
 from graph_weather.utils.logger import get_logger
 from graph_weather.train.wb_trainer import LitGraphForecaster
 from graph_weather.train.utils import build_pl_logger, get_args
@@ -22,7 +22,7 @@ def train(config: YAMLConfig) -> None:
         config: job configuration
     """
     # create data module (data loaders and data sets)
-    dmod = WeatherBenchTrainingDataModule(config)
+    dmod = WeatherBenchGRIBDataModule(config)
 
     # number of variables (features)
     num_features = dmod.ds_train.nlev * dmod.ds_train.nvar
@@ -72,8 +72,8 @@ def train(config: YAMLConfig) -> None:
         # run a fixed no of batches per epoch (helpful when debugging)
         limit_train_batches=config["model:limit-batches:training"],
         limit_val_batches=config["model:limit-batches:validation"],
-        # we have our own DDP-compliant sampler logic baked into the dataset
-        replace_sampler_ddp=False,
+        # with DDP: replace the default sampler with a DDP-compliant one
+        replace_sampler_ddp=(config["model:strategy"] is not None),
         # https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#fast-dev-run
         # fast_dev_run=config["output:logging:fast-dev-run"],
     )
