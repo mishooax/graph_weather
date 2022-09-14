@@ -29,7 +29,9 @@ def train(config: YAMLConfig) -> None:
     num_features = dmod.ds_train.nlev * dmod.ds_train.nvar
 
     LOGGER.debug("Number of variables: %d", num_features)
-    LOGGER.debug("Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst)
+    LOGGER.debug(
+        "Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst
+    )
 
     model = LitGraphForecaster(
         lat_lons=dmod.const_data.latlons,
@@ -46,13 +48,15 @@ def train(config: YAMLConfig) -> None:
         # use weights-and-biases
         logger = WandbLogger(
             project="GNN-WB",
-            save_dir=os.path.join(config["output:basedir"],
-                                  config["output:logging:log-dir"]),
+            save_dir=os.path.join(
+                config["output:basedir"], config["output:logging:log-dir"]
+            ),
         )
     elif config["model:tensorboard:enabled"]:
         # use tensorboard
-        logger = TensorBoardLogger(os.path.join(config["output:basedir"],
-                                  config["output:logging:log-dir"]))
+        logger = TensorBoardLogger(
+            os.path.join(config["output:basedir"], config["output:logging:log-dir"])
+        )
     else:
         logger = False
 
@@ -60,7 +64,9 @@ def train(config: YAMLConfig) -> None:
     trainer = pl.Trainer(
         accelerator="gpu",
         callbacks=[
-            EarlyStopping(monitor="val_wmse", min_delta=0.0, patience=6, verbose=False, mode="min"),
+            EarlyStopping(
+                monitor="val_wmse", min_delta=0.0, patience=6, verbose=False, mode="min"
+            ),
             ModelCheckpoint(
                 dirpath=os.path.join(
                     config["output:basedir"],
@@ -101,7 +107,9 @@ def get_args() -> argparse.Namespace:
     """Returns a namespace containing the command line arguments"""
     parser = argparse.ArgumentParser()
     required_args = parser.add_argument_group("required arguments")
-    required_args.add_argument("--config", required=True, help="Model configuration file (YAML)")
+    required_args.add_argument(
+        "--config", required=True, help="Model configuration file (YAML)"
+    )
     return parser.parse_args()
 
 

@@ -11,7 +11,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 import xarray as xr
 
-# from graph_weather.utils.dask_utils import init_dask_cluster
 from graph_weather.utils.config import YAMLConfig
 from graph_weather.data.wb_datamodule import WeatherBenchTestDataModule
 from graph_weather.utils.logger import get_logger

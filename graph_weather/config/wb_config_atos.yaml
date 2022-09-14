@@ -75,7 +75,7 @@ model:
       inference: 2
     batch-chunk-size:
       training: 1
-      inference: 1
+      inference: 4
 
   # miscellaneous
   precision: 16
