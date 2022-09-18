@@ -51,8 +51,8 @@ class NormalizedMSELoss(nn.Module):
         Returns:
             MSE loss on the variance-normalized values
         """
-        pred = pred / self.feature_variance
-        target = target / self.feature_variance
+        # pred = pred / self.feature_variance
+        # target = target / self.feature_variance
 
         # Mean of the physical variables
         out = torch.square(pred - target).mean(dim=-1)

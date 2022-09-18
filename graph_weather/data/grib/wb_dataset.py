@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 import os
 
 import numpy as np
+
 # import pandas as pd
 
 from torch.utils.data import Dataset
@@ -54,6 +55,7 @@ class WeatherBenchGRIBDataset(Dataset):
         # dates = list(pd.date_range("1979-01-01", "2015-12-31", freq="6H"))  # this has to be a list of strings
         # [x.strftime("%Y%m%d") for x in pd.date_range(**v["alldates"])]
         import climetlab as cml
+
         self.ds = cml.load_source("directory", fdir).sel(date=None, time=None, param=var_names, level=plevs)
         LOGGER.debug("Hello I am process %d with a dataset id %d", os.getpid(), id(self.ds))
 

@@ -23,8 +23,8 @@ input:
   constants:
     filename: /ec/res4/hpcperm/syma/WeatherBench/netcdf/constants.nc
     names:
-      - lsm
-      - z_std
+      - lsm  # land-sea mask, [0, 1]
+      - z_scal  # surface geopotential scaled to ~[0, 1]
 
 ###################
 #  OUTPUT BLOCK
@@ -53,8 +53,8 @@ model:
     enabled: False
   dataloader:
     num-workers:
-      training: 0
-      validation: 0
+      training: 6
+      validation: 2
       inference: 4
     batch-size:
       training: 2
@@ -76,10 +76,10 @@ model:
   # parallel strategy [set to null if you're running on a single node, single device]
   # see here for the various options:
   # https://pytorch-lightning.readthedocs.io/en/stable/extensions/strategy.html
-  strategy: ddp_find_unused_parameters_false
+  strategy: null # ddp_find_unused_parameters_false
 
   # number of GPUs per node and number of nodes (for DDP)
-  num-gpus: 4
+  num-gpus: 1
   num-nodes: 1
 
   # specific GNN model settings

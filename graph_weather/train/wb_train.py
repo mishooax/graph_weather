@@ -10,12 +10,13 @@ from graph_weather.utils.config import YAMLConfig
 from graph_weather.data.wb_datamodule import WeatherBenchTrainingDataModule
 from graph_weather.utils.logger import get_logger
 from graph_weather.train.wb_trainer import LitGraphForecaster
+from graph_weather.train.wb_unet_trainer import LitUnetForecaster
 from graph_weather.train.utils import build_pl_logger, get_args
 
 LOGGER = get_logger(__name__)
 
 
-def train(config: YAMLConfig) -> None:
+def train(config: YAMLConfig, unet: bool = False) -> None:
     """
     Train entry point.
     Args:
@@ -30,15 +31,24 @@ def train(config: YAMLConfig) -> None:
     LOGGER.debug("Number of variables: %d", num_features)
     LOGGER.debug("Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst)
 
-    model = LitGraphForecaster(
-        lat_lons=dmod.const_data.latlons,
-        feature_dim=num_features,
-        aux_dim=dmod.const_data.nconst,
-        hidden_dim=config["model:hidden-dim"],
-        num_blocks=config["model:num-blocks"],
-        lr=config["model:learn-rate"],
-        rollout=config["model:rollout"],
-    )
+    if unet:
+        model = LitUnetForecaster(
+            lat_lons=dmod.const_data.latlons,
+            feature_dim=num_features,
+            aux_dim=dmod.const_data.nconst,
+            lr=config["model:learn-rate"],
+            rollout=config["model:rollout"],
+        )
+    else:
+        model = LitGraphForecaster(
+            lat_lons=dmod.const_data.latlons,
+            feature_dim=num_features,
+            aux_dim=dmod.const_data.nconst,
+            hidden_dim=config["model:hidden-dim"],
+            num_blocks=config["model:num-blocks"],
+            lr=config["model:learn-rate"],
+            rollout=config["model:rollout"],
+        )
 
     trainer = pl.Trainer(
         accelerator="gpu",
@@ -87,4 +97,4 @@ def main() -> None:
     """Entry point for training."""
     args = get_args()
     config = YAMLConfig(args.config)
-    train(config)
+    train(config, args.unet)

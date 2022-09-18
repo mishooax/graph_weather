@@ -115,15 +115,15 @@ class WeatherBenchGRIBDataModule(pl.LightningDataModule):
         return DataLoader(
             self.ds_train,
             batch_size=bs,
-            # shuffle=True,
+            shuffle=True,
             # number of worker processes
             num_workers=self.config["model:dataloader:num-workers:training"],
             # use of pinned memory can speed up CPU-to-GPU data transfers
             pin_memory=True,
             # custom collator (see above)
             collate_fn=_custom_collator_wrapper(self.const_data.get_constants(bs)),
-            # prefetch_factor=4,
-            # persistent_workers=True,
+            prefetch_factor=4,
+            persistent_workers=True,
         )
 
     def val_dataloader(self) -> DataLoader:
@@ -131,11 +131,12 @@ class WeatherBenchGRIBDataModule(pl.LightningDataModule):
         return DataLoader(
             self.ds_valid,
             batch_size=bs,
+            shuffle=False,
             num_workers=self.config["model:dataloader:num-workers:validation"],
             pin_memory=True,
             collate_fn=_custom_collator_wrapper(self.const_data.get_constants(bs)),
-            # prefetch_factor=4,
-            # persistent_workers=True,
+            prefetch_factor=4,
+            persistent_workers=True,
         )
 
     def transfer_batch_to_device(self, batch: WeatherBenchDataBatch, device: torch.device, dataloader_idx: int = 0) -> None:

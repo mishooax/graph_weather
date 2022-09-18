@@ -45,7 +45,7 @@ output:
   checkpoints:
     ckpt-dir: checkpoints
   model:
-    save-top-k: 1
+    save-top-k: 5
     checkpoint-filename: "gnn-wb-weights-{epoch:02d}-{val_wmse:.3f}"
 
 ###################
@@ -69,16 +69,16 @@ model:
     scheduler-port: 8786
   dataloader:
     num-workers:
-      training: 1
-      validation: 1 
+      training: 5
+      validation: 2 
       inference: 1
     batch-size:
       training: 1
       validation: 1
       inference: 1
     batch-chunk-size:
-      training: 1
-      validation: 1
+      training: 2
+      validation: 2
       inference: 1
 
   # miscellaneous
@@ -87,28 +87,28 @@ model:
   # runs only N training batches [N = integer | null]
   # if null then we run through all the batches
   limit-batches:
-    training: 500 # null
-    validation: 200 # null
+    training: null
+    validation: null
     test: 50
     predict: 50
 
   # parallel strategy [set to null if you're running on a single node, single device]
   # see here for the various options:
   # https://pytorch-lightning.readthedocs.io/en/stable/extensions/strategy.html
-  strategy: ddp_find_unused_parameters_false  # null
+  strategy: ddp_find_unused_parameters_false
 
   # number of GPUs per node and number of nodes (for DDP)
-  num-gpus: 1
+  num-gpus: 2
   num-nodes: 1
 
   # specific GNN model settings
   lead-time: 6
-  max-epochs: 1
+  max-epochs: 4
   learn-rate: 1.e-3
   # latent graph size
-  hidden-dim: 128
+  hidden-dim: 64
   # rounds of message passing
-  num-blocks: 9
+  num-blocks: 3
   # length of the "rollout" window (see Keisler's paper)
   rollout: 4
   # Keisler's three training rounds were:
