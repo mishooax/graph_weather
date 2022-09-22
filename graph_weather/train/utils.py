@@ -37,4 +37,6 @@ def get_args() -> argparse.Namespace:
     required_args.add_argument("--config", required=True, help="Model configuration file (YAML)")
     optional_args = parser.add_argument_group("optional arguments")
     optional_args.add_argument("--unet", required=False, action="store_true", help="Use a simple UNet model (no GNN)")
+    optional_args.add_argument("--ae", required=False, action="store_true", help="Use a graph autoencoder model (testing)")
+    # TODO: make these exclusive arguments
     return parser.parse_args()

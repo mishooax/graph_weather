@@ -41,6 +41,7 @@ class Decoder(nn.Module):
         hidden_dim_decoder: int = 128,
         hidden_layers_decoder: int = 2,
         mlp_norm_type: Optional[str] = "LayerNorm",
+        residual_connection: bool = True,
     ) -> None:
         """
         Decoder from latent graph to lat/lon graph for assimilation of observation
@@ -99,7 +100,6 @@ class Decoder(nn.Module):
 
         # Use normal graph as its a bit simpler
         self.graph = Data(x=nodes, edge_index=edge_index, edge_attr=self.h3_to_lat_distances)
-        # self.register_buffer("graph", graph, persistent=False)
 
         self.edge_encoder = MLP(2, output_edge_dim, hidden_dim_processor_edge, 2, mlp_norm_type)
         self.graph_processor = GraphProcessor(
@@ -114,13 +114,15 @@ class Decoder(nn.Module):
         )
         self.node_decoder = MLP(input_dim, output_dim, hidden_dim_decoder, hidden_layers_decoder, None)
 
+        self.residual_connection = residual_connection
+
     def forward(self, processor_features: torch.Tensor, start_features: torch.Tensor) -> torch.Tensor:
         """
         Adds features to the encoding graph
 
         Args:
             processor_features: Processed features in shape [B*Nodes, Features]
-            start_features: Original input features to the encoder, with shape [B, Nodes, Features]
+            start_features: Original input (physical) features to the encoder, with shape [B, Nodes, Features]
         Returns:
             Updated features for model
         """
@@ -146,5 +148,7 @@ class Decoder(nn.Module):
         out = einops.rearrange(out, "(b n) f -> b n f", b=bs)
         _, out = torch.split(out, [self.num_h3, self.num_latlons], dim=1)
 
-        # residual connection
-        return out + start_features
+        # residual connection; we have the option to enable or disable this (see __init__)
+        if self.residual_connection:
+            return out + start_features
+        return out

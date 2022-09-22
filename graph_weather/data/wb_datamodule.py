@@ -24,14 +24,20 @@ BatchChunkType = Union[da.Array, List[List[int]]]
 
 
 class WeatherBenchDataBatch:
-    """Custom batch type for WeatherBench data."""
+    """
+    Custom batch type for WeatherBench data.
+    Contains two elements:
+        X: tuple of tensors that store the batch data (x(t), x(t+dt), ...)
+           len(X) == rollout + 1
+        idx: global sample indices, so we can map a sample back to its correct index in the original xr.Dataset
+    """
 
     def __init__(self, batch_data: Tuple[BatchChunkType, ...], const_data: np.ndarray) -> None:
         """Construct a batch object from the variable and constant data tensors."""
         zipped_batch = list(zip(*batch_data))
 
         batch: List[torch.Tensor] = []
-        for X in zipped_batch[:-1]:
+        for X in zipped_batch[:-1]:  # last element stores the "global" sample indexes - these go into self.idx
             X = torch.as_tensor(
                 np.concatenate(
                     [
@@ -78,18 +84,20 @@ def get_weatherbench_dataset(
     varnames: List[str],
     plevs: Optional[List[int]],
     client: Client,
-    config: YAMLConfig,
+    disk_format: str,
 ) -> xr.Dataset:
+    """Opens the WB dataset using Dask, selects the physical variables and plevs."""
     LOGGER.debug("Created Dask client %s attached to %s ...", client, client.scheduler_info)
-    kwargs = dict(consolidated=True) if config["input:format"] == "zarr" else {}
+    kwargs = dict(consolidated=True) if disk_format == "zarr" else {}
     sel_plevs = plevs if plevs is not None else slice(None)
     ds = xr.open_mfdataset(
         fnames,
         parallel=(client is not None),  # uses Dask if a client is present
         chunks={"time": constants._DS_TIME_CHUNK},
-        engine=config["input:format"],
+        engine=disk_format,
         **kwargs,
     )[varnames].sel(level=sel_plevs)
+    # reverse latitudes to run from -90. to 90. deg, as this is what the encoder expects
     return ds.reindex(latitude=ds.latitude[::-1])
 
 
@@ -120,7 +128,7 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
                 os.path.join(config["input:variables:training:basedir"], config["input:variables:training:filename-template"])
             ),
             var_names=config["input:variables:names"],
-            read_wb_data_func=partial(get_weatherbench_dataset, config=config),
+            read_wb_data_func=partial(get_weatherbench_dataset, disk_format=config["input:format"]),
             var_mean=var_means,
             var_sd=var_sds,
             plevs=config["input:variables:levels"],
@@ -137,7 +145,7 @@ class WeatherBenchTrainingDataModule(pl.LightningDataModule):
                 os.path.join(config["input:variables:validation:basedir"], config["input:variables:validation:filename-template"])
             ),
             var_names=config["input:variables:names"],
-            read_wb_data_func=partial(get_weatherbench_dataset, config=config),
+            read_wb_data_func=partial(get_weatherbench_dataset, disk_format=config["input:format"]),
             var_mean=var_means,
             var_sd=var_sds,
             plevs=config["input:variables:levels"],
@@ -243,7 +251,7 @@ class WeatherBenchTestDataModule(pl.LightningDataModule):
                 os.path.join(config["input:variables:test:basedir"], config["input:variables:test:filename-template"])
             ),
             var_names=config["input:variables:names"],
-            read_wb_data_func=partial(get_weatherbench_dataset, config=config),
+            read_wb_data_func=partial(get_weatherbench_dataset, disk_format=config["input:format"]),
             var_mean=var_means,
             var_sd=var_sds,
             plevs=config["input:variables:levels"],
@@ -255,7 +263,7 @@ class WeatherBenchTestDataModule(pl.LightningDataModule):
         self.ds_predict = WeatherBenchDataset(
             fnames=[config["input:variables:prediction:filename"]],  # single file
             var_names=config["input:variables:names"],
-            read_wb_data_func=partial(get_weatherbench_dataset, config=config),
+            read_wb_data_func=partial(get_weatherbench_dataset, disk_format=config["input:format"]),
             var_mean=var_means,
             var_sd=var_sds,
             plevs=config["input:variables:levels"],

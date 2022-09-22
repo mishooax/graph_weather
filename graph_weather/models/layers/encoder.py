@@ -103,11 +103,10 @@ class Encoder(torch.nn.Module):
         self.latent_graph = self.create_latent_graph()
 
         # Extra starting ones for appending to inputs, could 'learn' good starting points
-        h3_nodes = torch.zeros((h3.num_hexagons(resolution), input_dim), dtype=torch.float)
+        self.h3_nodes = torch.zeros((h3.num_hexagons(resolution), input_dim), dtype=torch.float)
         # Output graph
 
-        self.register_buffer("h3_nodes", h3_nodes, persistent=False)
-        self.graphs_on_device = False
+        # self.register_buffer("h3_nodes", h3_nodes, persistent=False)
 
         self.node_encoder = MLP(
             input_dim,
@@ -152,7 +151,7 @@ class Encoder(torch.nn.Module):
             Torch tensors of node features, latent graph edge index, and latent edge attributes
         """
         batch_size = features.shape[0]
-        # self.h3_nodes = self.h3_nodes.to(features.device)
+        self.h3_nodes = self.h3_nodes.to(features.device)
         self.graph = self.graph.to(features.device)
         self.latent_graph = self.latent_graph.to(features.device)
         # Cat with the h3 nodes to have correct amount of nodes, and in right order

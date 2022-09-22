@@ -11,12 +11,13 @@ from graph_weather.data.wb_datamodule import WeatherBenchTrainingDataModule
 from graph_weather.utils.logger import get_logger
 from graph_weather.train.wb_trainer import LitGraphForecaster
 from graph_weather.train.wb_unet_trainer import LitUnetForecaster
+from graph_weather.train.wb_ae_trainer import LitGraphAutoEncoder
 from graph_weather.train.utils import build_pl_logger, get_args
 
 LOGGER = get_logger(__name__)
 
 
-def train(config: YAMLConfig, unet: bool = False) -> None:
+def train(config: YAMLConfig, unet: bool = False, ae: bool = False) -> None:
     """
     Train entry point.
     Args:
@@ -32,6 +33,7 @@ def train(config: YAMLConfig, unet: bool = False) -> None:
     LOGGER.debug("Number of auxiliary (time-independent) variables: %d", dmod.const_data.nconst)
 
     if unet:
+        LOGGER.debug("Using a U-Net model ...")
         model = LitUnetForecaster(
             lat_lons=dmod.const_data.latlons,
             feature_dim=num_features,
@@ -39,7 +41,17 @@ def train(config: YAMLConfig, unet: bool = False) -> None:
             lr=config["model:learn-rate"],
             rollout=config["model:rollout"],
         )
+    elif ae:
+        LOGGER.debug("Using a graph autoencoder model (reconstruct inputs)...")
+        model = LitGraphAutoEncoder(
+            lat_lons=dmod.const_data.latlons,
+            feature_dim=num_features,
+            aux_dim=dmod.const_data.nconst,
+            lr=config["model:learn-rate"],
+            norm_type=config["model:norm-type"],
+        )
     else:
+        LOGGER.debug("Using Keisler's graph model ...")
         model = LitGraphForecaster(
             lat_lons=dmod.const_data.latlons,
             feature_dim=num_features,
@@ -98,4 +110,4 @@ def main() -> None:
     """Entry point for training."""
     args = get_args()
     config = YAMLConfig(args.config)
-    train(config, args.unet)
+    train(config, args.unet, args.ae)

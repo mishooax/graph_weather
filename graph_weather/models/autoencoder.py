@@ -3,29 +3,26 @@ from typing import Optional
 
 import torch
 from torch import nn
-
-from huggingface_hub import PyTorchModelHubMixin
+import numpy as np
 
 from graph_weather.models.layers.decoder import Decoder
 from graph_weather.models.layers.encoder import Encoder
-from graph_weather.models.layers.processor import Processor
 from graph_weather.utils.logger import get_logger
 
 LOGGER = get_logger(__name__)
 
 
-class GraphWeatherForecaster(nn.Module, PyTorchModelHubMixin):
-    """Main weather prediction model from the paper"""
+class GraphWeatherAutoencoder(nn.Module):
+    """Autoencoder: encoder + decoder (no processor module)"""
 
     def __init__(
         self,
-        lat_lons: list,
+        lat_lons: np.ndarray,
         resolution: int = 2,
         feature_dim: int = 78,
         aux_dim: int = 24,
         node_dim: int = 256,
         edge_dim: int = 256,
-        num_blocks: int = 9,
         hidden_dim_processor_node: int = 256,
         hidden_dim_processor_edge: int = 256,
         hidden_layers_processor_node: int = 2,
@@ -69,16 +66,6 @@ class GraphWeatherForecaster(nn.Module, PyTorchModelHubMixin):
             hidden_layers_processor_edge=hidden_layers_processor_edge,
             mlp_norm_type=norm_type,
         )
-        self.processor = Processor(
-            input_dim=node_dim,
-            edge_dim=edge_dim,
-            num_blocks=num_blocks,
-            hidden_dim_processor_edge=hidden_dim_processor_edge,
-            hidden_layers_processor_node=hidden_layers_processor_node,
-            hidden_dim_processor_node=hidden_dim_processor_node,
-            hidden_layers_processor_edge=hidden_layers_processor_edge,
-            mlp_norm_type=norm_type,
-        )
         self.decoder = Decoder(
             lat_lons=lat_lons,
             resolution=resolution,
@@ -92,19 +79,18 @@ class GraphWeatherForecaster(nn.Module, PyTorchModelHubMixin):
             hidden_dim_decoder=hidden_dim_decoder,
             hidden_layers_decoder=hidden_layers_decoder,
             mlp_norm_type=norm_type,
+            # disable the residual connection
+            residual_connection=False,
         )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """
-        Compute the new state of the forecast
-
+        Attempts to reconstruct the given input, after condensing it onto the latent graph.
         Args:
             features: The input features, aligned with the order of lat_lons_heights
-
         Returns:
-            The next state in the forecast
+            The reconstructed input.
         """
-        x, edge_idx, edge_attr = self.encoder(features)
-        x = self.processor(x, edge_idx, edge_attr)
+        x, _, _ = self.encoder(features)
         x = self.decoder(x, features[..., : self.feature_dim])
         return x
