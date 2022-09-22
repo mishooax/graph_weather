@@ -83,13 +83,14 @@ def get_weatherbench_dataset(
     LOGGER.debug("Created Dask client %s attached to %s ...", client, client.scheduler_info)
     kwargs = dict(consolidated=True) if config["input:format"] == "zarr" else {}
     sel_plevs = plevs if plevs is not None else slice(None)
-    return xr.open_mfdataset(
+    ds = xr.open_mfdataset(
         fnames,
         parallel=(client is not None),  # uses Dask if a client is present
         chunks={"time": constants._DS_TIME_CHUNK},
         engine=config["input:format"],
         **kwargs,
     )[varnames].sel(level=sel_plevs)
+    return ds.reindex(latitude=ds.latitude[::-1])
 
 
 class WeatherBenchTrainingDataModule(pl.LightningDataModule):

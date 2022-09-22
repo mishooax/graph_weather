@@ -45,7 +45,7 @@ class AssimilatorEncoder(torch.nn.Module):
         mlp_norm_type: Optional[str] = "LayerNorm",
     ) -> None:
         """
-        Encode the lat/lon data inot the isohedron graph
+        Encode the lat/lon data into the icosahedron graph
 
         Args:
             resolution: H3 resolution level

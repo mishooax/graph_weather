@@ -76,16 +76,16 @@ model:
   # parallel strategy [set to null if you're running on a single node, single device]
   # see here for the various options:
   # https://pytorch-lightning.readthedocs.io/en/stable/extensions/strategy.html
-  strategy: null # ddp_find_unused_parameters_false
+  strategy: ddp_find_unused_parameters_false
 
   # number of GPUs per node and number of nodes (for DDP)
-  num-gpus: 1
+  num-gpus: 2
   num-nodes: 1
 
   # specific GNN model settings
   lead-time: 6
-  max-epochs: 1
-  learn-rate: 1.e-3
+  max-epochs: 2
+  learn-rate: 2.e-3
   # latent graph size
   hidden-dim: 64
   # rounds of message passing

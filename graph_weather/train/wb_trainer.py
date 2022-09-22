@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 import numpy as np
 import torch
@@ -19,6 +19,7 @@ class LitGraphForecaster(pl.LightningModule):
         num_blocks: int = 3,
         lr: float = 1e-3,
         rollout: int = 1,
+        norm_type: Optional[str] = "LayerNorm",
     ) -> None:
         super().__init__()
         self.gnn = GraphWeatherForecaster(
@@ -30,6 +31,7 @@ class LitGraphForecaster(pl.LightningModule):
             hidden_layers_processor_edge=hidden_dim,
             hidden_dim_processor_edge=hidden_dim,
             num_blocks=num_blocks,
+            norm_type=norm_type,
         )
         self.loss = NormalizedMSELoss(feature_variance=np.ones((feature_dim,)), lat_lons=lat_lons)
         self.feature_dim = feature_dim

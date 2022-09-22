@@ -9,6 +9,9 @@ from huggingface_hub import PyTorchModelHubMixin
 from graph_weather.models.layers.decoder import Decoder
 from graph_weather.models.layers.encoder import Encoder
 from graph_weather.models.layers.processor import Processor
+from graph_weather.utils.logger import get_logger
+
+LOGGER = get_logger(__name__)
 
 
 class GraphWeatherForecaster(nn.Module, PyTorchModelHubMixin):
@@ -54,6 +57,7 @@ class GraphWeatherForecaster(nn.Module, PyTorchModelHubMixin):
         """
         super().__init__()
         self.feature_dim = feature_dim
+        LOGGER.debug("GraphWeatherForecaster norm-type: %s", norm_type)
         self.encoder = Encoder(
             lat_lons=lat_lons,
             resolution=resolution,

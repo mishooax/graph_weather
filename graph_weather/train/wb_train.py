@@ -48,6 +48,7 @@ def train(config: YAMLConfig, unet: bool = False) -> None:
             num_blocks=config["model:num-blocks"],
             lr=config["model:learn-rate"],
             rollout=config["model:rollout"],
+            norm_type=config["model:norm-type"],
         )
 
     trainer = pl.Trainer(

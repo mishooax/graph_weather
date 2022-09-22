@@ -155,8 +155,8 @@ class Encoder(torch.nn.Module):
         # self.h3_nodes = self.h3_nodes.to(features.device)
         self.graph = self.graph.to(features.device)
         self.latent_graph = self.latent_graph.to(features.device)
-        features = torch.cat([features, einops.repeat(self.h3_nodes, "n f -> b n f", b=batch_size)], dim=1)
         # Cat with the h3 nodes to have correct amount of nodes, and in right order
+        features = torch.cat([features, einops.repeat(self.h3_nodes, "n f -> b n f", b=batch_size)], dim=1)
         features = einops.rearrange(features, "b n f -> (b n) f")
 
         out = self.node_encoder(features)

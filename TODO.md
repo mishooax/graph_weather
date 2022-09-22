@@ -9,6 +9,7 @@
 - [x] activation checkpointing
     - Reduce memory usage at the expense of additional (re-)computation during the backward pass.
     - https://github.com/prigoyal/pytorch_memonger/blob/master/tutorial/Checkpointing_for_PyTorch_models.ipynb
-- [ ] inspect input data
+- [x] inspect input data
+- [x] baseline: UNet
 - [ ] check training and validation errors
 - [ ] split config file into two separate files (model-specific config and file paths)

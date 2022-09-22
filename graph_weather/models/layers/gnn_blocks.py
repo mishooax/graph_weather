@@ -353,7 +353,7 @@ class GraphProcessor(nn.Module):
 
         Args:
             x: Input nodes
-            edge_index: Edge indicies in COO format
+            edge_index: Edge indices in COO format
             edge_attr: Edge attributes
 
         Returns:

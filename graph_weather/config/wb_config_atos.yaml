@@ -56,7 +56,7 @@ model:
     # this will detect and trace back NaNs / Infs etc. but will slow down training
     anomaly-detection: False
   wandb:
-    enabled: True
+    enabled: False
   tensorboard:
     enabled: False
   dask:
@@ -77,8 +77,8 @@ model:
       validation: 1
       inference: 1
     batch-chunk-size:
-      training: 2
-      validation: 2
+      training: 1
+      validation: 1
       inference: 1
 
   # miscellaneous
@@ -87,8 +87,8 @@ model:
   # runs only N training batches [N = integer | null]
   # if null then we run through all the batches
   limit-batches:
-    training: null
-    validation: null
+    training: 100
+    validation: 50
     test: 50
     predict: 50
 
@@ -101,16 +101,21 @@ model:
   num-gpus: 2
   num-nodes: 1
 
-  # specific GNN model settings
+  # training settings
   lead-time: 6
-  max-epochs: 4
-  learn-rate: 1.e-3
+  max-epochs: 2
+  learn-rate: 2.e-3
+
+  # specific GNN model settings
+  # MLP layer output norm type
+  # one of 'LayerNorm', 'GraphNorm', 'InstanceNorm', 'BatchNorm', 'MessageNorm', or null [None]
+  norm-type: null
   # latent graph size
   hidden-dim: 64
   # rounds of message passing
-  num-blocks: 3
+  num-blocks: 9
   # length of the "rollout" window (see Keisler's paper)
-  rollout: 4
+  rollout: 1
   # Keisler's three training rounds were:
   # Round 1. ~960,000 batches @ ~0.3 seconds per batch (4-step rollout)
   # Round 2. ~90,000 batches @ ~1.0 seconds per batch (8-step rollout)

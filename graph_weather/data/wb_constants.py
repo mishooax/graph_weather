@@ -18,6 +18,7 @@ class WeatherBenchConstantFields:
         """
         # constant fields
         self._Xc = xr.load_dataset(const_fname)
+        self._Xc = self._Xc.reindex(latitude=self._Xc.latitude[::-1])
 
         if const_names is not None:
             # retain only the constant fields we want

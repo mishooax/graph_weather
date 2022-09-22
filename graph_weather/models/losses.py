@@ -37,6 +37,8 @@ class NormalizedMSELoss(nn.Module):
         self.register_buffer("weights", torch.as_tensor(weights), persistent=True)
         self.register_buffer("feature_variance", torch.as_tensor(feature_variance), persistent=True)
 
+        self.huber = nn.HuberLoss(reduction="none")
+
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Calculate the loss
@@ -59,3 +61,7 @@ class NormalizedMSELoss(nn.Module):
         # Weight by the latitude, as that changes, so does the size of the pixel
         out = out * self.weights.expand_as(out)
         return out.mean()
+
+        # out = self.huber(pred, target).mean(dim=-1)
+        # out = out * self.weights.expand_as(out)
+        # return out.mean()
